@@ -70,6 +70,50 @@
 // [SSI_SLAVE]$
 
 // $[ULP_SSI]
+// ULP_SSI MOSI_ on ULP_GPIO_1/GPIO_65
+#ifndef ULP_SSI_MOSI__PORT                      
+#define ULP_SSI_MOSI__PORT                       ULP
+#endif
+#ifndef ULP_SSI_MOSI__PIN                       
+#define ULP_SSI_MOSI__PIN                        1
+#endif
+#ifndef ULP_SSI_MOSI_LOC                        
+#define ULP_SSI_MOSI_LOC                         0
+#endif
+
+// ULP_SSI MISO_ on ULP_GPIO_2/GPIO_66
+#ifndef ULP_SSI_MISO__PORT                      
+#define ULP_SSI_MISO__PORT                       ULP
+#endif
+#ifndef ULP_SSI_MISO__PIN                       
+#define ULP_SSI_MISO__PIN                        2
+#endif
+#ifndef ULP_SSI_MISO_LOC                        
+#define ULP_SSI_MISO_LOC                         12
+#endif
+
+// ULP_SSI SCK_ on ULP_GPIO_8/GPIO_72
+#ifndef ULP_SSI_SCK__PORT                       
+#define ULP_SSI_SCK__PORT                        ULP
+#endif
+#ifndef ULP_SSI_SCK__PIN                        
+#define ULP_SSI_SCK__PIN                         8
+#endif
+#ifndef ULP_SSI_SCK_LOC                         
+#define ULP_SSI_SCK_LOC                          7
+#endif
+
+// ULP_SSI CS0_ on ULP_GPIO_10/GPIO_74
+#ifndef ULP_SSI_CS0__PORT                       
+#define ULP_SSI_CS0__PORT                        ULP
+#endif
+#ifndef ULP_SSI_CS0__PIN                        
+#define ULP_SSI_CS0__PIN                         10
+#endif
+#ifndef ULP_SSI_CS0_LOC                         
+#define ULP_SSI_CS0_LOC                          9
+#endif
+
 // [ULP_SSI]$
 
 // $[GSPI_MASTER]

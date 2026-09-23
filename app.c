@@ -1,31 +1,12 @@
 /***************************************************************************/ /**
  * @file
- * @brief Station Ping Example Application
+ * @brief Fall Detection + SOS Firebase Application
  *******************************************************************************
  * # License
  * <b>Copyright 2022 Silicon Laboratories Inc. www.silabs.com</b>
  *******************************************************************************
  *
  * SPDX-License-Identifier: Zlib
- *
- * The licensor of this software is Silicon Laboratories Inc.
- *
- * This software is provided 'as-is', without any express or implied
- * warranty. In no event will the authors be held liable for any damages
- * arising from the use of this software.
- *
- * Permission is granted to anyone to use this software for any purpose,
- * including commercial applications, and to alter it and redistribute it
- * freely, subject to the following restrictions:
- *
- * 1. The origin of this software must not be misrepresented; you must not
- *    claim that you wrote the original software. If you use this software
- *    in a product, an acknowledgment in the product documentation would be
- *    appreciated but is not required.
- * 2. Altered source versions must be plainly marked as such, and must not be
- *    misrepresented as being the original software.
- * 3. This notice may not be removed or altered from any source distribution.
- *
  ******************************************************************************/
 #include "cmsis_os2.h"
 #include "sl_net.h"
@@ -36,22 +17,14 @@
 #include "sl_wifi.h"
 #include "sl_net_wifi_types.h"
 #include "sl_net_default_values.h"
+#include "icm40627_example.h"
+#include "gpio_uulp_example.h"
+#include "rsi_debug.h"
 #include <string.h>
 
-/******************************************************
- *                    Constants
- ******************************************************/
-#define REMOTE_IP_ADDRESS "8.8.8.8"
-#define CONNECT_WITH_PMK  0
-#define PING_PACKET_SIZE  64
+#define CONNECT_WITH_PMK 0
+#define MAIN_LOOP_DELAY_MS 20
 
-// Set to 1 to demonstrate BSS Max Idle Period configuration.
-#define TEST_BSS_MAX_IDLE       0
-#define BSS_MAX_IDLE_PERIOD_SEC 60
-
-/******************************************************
- *               Variable Definitions
- ******************************************************/
 const osThreadAttr_t thread_attributes = {
   .name       = "app",
   .attr_bits  = 0,
@@ -61,17 +34,12 @@ const osThreadAttr_t thread_attributes = {
   .stack_size = 3072,
   .priority   = osPriorityLow,
   .tz_module  = 0,
+  .reserved   = 0,
 };
 
-/******************************************************
- *               Function Declarations
- ******************************************************/
 static void application_start(void *argument);
 static sl_status_t network_event_handler(sl_net_event_t event, sl_status_t status, void *data, uint32_t data_length);
 
-/******************************************************
- *               Function Definitions
- ******************************************************/
 void app_init(void)
 {
   osThreadNew((osThreadFunc_t)application_start, NULL, &thread_attributes);
@@ -82,12 +50,16 @@ static void application_start(void *argument)
   UNUSED_PARAMETER(argument);
   sl_status_t status;
 
+  // Sensors and button init first, independent of Wi-Fi
+  icm40627_example_init();
+  gpio_uulp_example_init();
+
   status = sl_net_init(SL_NET_WIFI_CLIENT_INTERFACE, NULL, NULL, network_event_handler);
   if (status != SL_STATUS_OK) {
-    SL_DEBUG_LOG_V2(ERROR, "Failed to start Wi-Fi Client interface: 0x%lX\r\n", status);
+    printf("\r\nFailed to start Wi-Fi Client interface: 0x%lX\r\n", status);
     return;
   }
-  SL_DEBUG_LOG_V2(INFO, "Wi-Fi client interface init success\r\n");
+  printf("\r\nWi-Fi client interface up success\r\n");
 
 #if CONNECT_WITH_PMK
   uint8_t pairwise_master_key[32] = { 0 };
@@ -96,91 +68,37 @@ static void application_start(void *argument)
   ssid.length  = (uint8_t)(sizeof(DEFAULT_WIFI_CLIENT_PROFILE_SSID) - 1);
   memcpy(ssid.value, DEFAULT_WIFI_CLIENT_PROFILE_SSID, ssid.length);
 
-  status = sl_wifi_get_pairwise_master_key(SL_WIFI_CLIENT_INTERFACE,
-                                           type,
-                                           &ssid,
-                                           DEFAULT_WIFI_CLIENT_CREDENTIAL,
-                                           pairwise_master_key);
-  if (status != SL_STATUS_OK) {
-    SL_DEBUG_LOG_V2(ERROR, "Get Pairwise Master Key Failed, Error Code : 0x%lX\r\n", status);
-    return;
-  }
-  SL_DEBUG_LOG_V2(INFO, "Get Pairwise Master Key Success\r\n");
+  status = sl_wifi_get_pairwise_master_key(SL_WIFI_CLIENT_INTERFACE, type, &ssid,
+                                           DEFAULT_WIFI_CLIENT_CREDENTIAL, pairwise_master_key);
+  if (status != SL_STATUS_OK) { printf("\r\nGet Pairwise Master Key Failed: 0x%lX\r\n", status); return; }
 
-  status = sl_net_set_profile(SL_NET_WIFI_CLIENT_INTERFACE,
-                              SL_NET_DEFAULT_WIFI_CLIENT_PROFILE_ID,
+  status = sl_net_set_profile(SL_NET_WIFI_CLIENT_INTERFACE, SL_NET_DEFAULT_WIFI_CLIENT_PROFILE_ID,
                               &DEFAULT_WIFI_CLIENT_PROFILE);
-  if (status != SL_STATUS_OK) {
-    SL_DEBUG_LOG_V2(ERROR, "Failed to set client profile: 0x%lx\r\n", status);
-    return;
-  }
-  SL_DEBUG_LOG_V2(INFO, "Wi-Fi set client profile success\r\n");
+  if (status != SL_STATUS_OK) { printf("\r\nFailed to set client profile: 0x%lx\r\n", status); return; }
 
-  status = sl_net_set_credential(SL_NET_DEFAULT_WIFI_CLIENT_CREDENTIAL_ID,
-                                 SL_NET_WIFI_PMK,
-                                 pairwise_master_key,
-                                 sizeof(pairwise_master_key));
-  if (status != SL_STATUS_OK) {
-    SL_DEBUG_LOG_V2(ERROR, "Failed sl_net_set_credential: 0x%lX\r\n", status);
-    return;
-  }
-  SL_DEBUG_LOG_V2(INFO, "sl_net_set_credential done\r\n");
-
-#endif
-
-#if TEST_BSS_MAX_IDLE
-  status = sl_wifi_configure_timeout(SL_WIFI_CLIENT_INTERFACE, SL_WIFI_BSS_MAX_IDLE_PERIOD, BSS_MAX_IDLE_PERIOD_SEC);
-  if (status != SL_STATUS_OK) {
-    SL_DEBUG_LOG_V2(ERROR, "Failed to configure BSS MAX Idle Period: 0x%lX\r\n", status);
-    return;
-  }
-  SL_DEBUG_LOG_V2(INFO, "Configured BSS MAX Idle Period to %d seconds\r\n", BSS_MAX_IDLE_PERIOD_SEC);
+  status = sl_net_set_credential(SL_NET_DEFAULT_WIFI_CLIENT_CREDENTIAL_ID, SL_NET_WIFI_PMK,
+                                 pairwise_master_key, sizeof(pairwise_master_key));
+  if (status != SL_STATUS_OK) { printf("\r\nFailed sl_net_set_credential: 0x%lX\r\n", status); return; }
 #endif
 
   status = sl_net_up(SL_NET_WIFI_CLIENT_INTERFACE, SL_NET_DEFAULT_WIFI_CLIENT_PROFILE_ID);
   if (status != SL_STATUS_OK) {
-    SL_DEBUG_LOG_V2(ERROR, "Failed to bring Wi-Fi client interface up: 0x%lX\r\n", status);
-    return;
-  }
-  SL_DEBUG_LOG_V2(INFO, "Wi-Fi client connected\r\n");
-
-#if TEST_BSS_MAX_IDLE
-  uint16_t bss_max_idle_period = 0;
-  status = sl_wifi_get_timeout(SL_WIFI_CLIENT_INTERFACE, SL_WIFI_BSS_MAX_IDLE_PERIOD, &bss_max_idle_period);
-  if (status != SL_STATUS_OK) {
-    SL_DEBUG_LOG_V2(ERROR, "Failed to get BSS MAX Idle Period: 0x%lX\r\n", status);
-    return;
-  }
-  SL_DEBUG_LOG_V2(INFO,
-                  "Negotiated and fetched BSS MAX Idle Period from the AP is %d seconds\r\n",
-                  bss_max_idle_period);
-#endif
-
-#define GET_STA_TSF 0
-#if GET_STA_TSF
-  sl_wifi_tsf64_t tsf = { 0 };
-  status              = sl_wifi_get_sta_tsf(SL_WIFI_2_4GHZ_INTERFACE, &tsf);
-  if (status != SL_STATUS_OK) {
-    SL_DEBUG_LOG_V2(ERROR, "Get station TSF failed, Error Code : 0x%lX", status);
+    printf("\r\nFailed to bring Wi-Fi client interface up: 0x%lX\r\n", status);
+    // Non-fatal: fall detection and SOS button must keep working even if Wi-Fi fails.
   } else {
-    SL_DEBUG_LOG_V2(INFO, "Get station TSF success: tsf_m=0x%lx, tsf_l=0x%lx\r\n", tsf.tsf_m, tsf.tsf_l);
+    printf("\r\nWi-Fi client connected\r\n");
   }
-#endif
 
-  sl_ip_address_t remote_ip_address = { 0 };
-  sl_net_inet_addr(REMOTE_IP_ADDRESS, (uint32_t *)&remote_ip_address.ip.v4);
-  remote_ip_address.type = SL_IPV4;
-
+  DEBUGOUT("Entering main loop\n");
+  uint32_t loop_counter = 0;
   while (1) {
-    // Send ping
-    status = sl_si91x_send_ping(remote_ip_address, PING_PACKET_SIZE);
-    if (status != SL_STATUS_IN_PROGRESS) {
-      SL_DEBUG_LOG_V2(ERROR, "Ping request failed with status 0x%lX\r\n", status);
-      return;
+    loop_counter++;
+    if (loop_counter % 50 == 0) {
+      DEBUGOUT("Main loop alive, counter=%lu\n", loop_counter);
     }
-
-    // Sleep for 2 seconds
-    osDelay(2000);
+    icm40627_example_process_action();
+    gpio_uulp_example_process_action();
+    osDelay(MAIN_LOOP_DELAY_MS);
   }
 }
 
@@ -190,46 +108,26 @@ static sl_status_t network_event_handler(sl_net_event_t event, sl_status_t statu
   switch (event) {
     case SL_NET_PING_RESPONSE_EVENT: {
       sl_net_ping_response_t *response = (sl_net_ping_response_t *)data;
-      if (status != SL_STATUS_OK) {
-        SL_DEBUG_LOG_V2(ERROR, "Ping request failed!\r\n");
-        return status;
-      }
-      SL_DEBUG_LOG_V2(INFO, "%u bytes received from ", response->ping_size);
-      SL_DEBUG_LOG_V2(INFO,
-                      "%u.%u.%u.",
-                      response->ping_address.ipv4_address[0],
-                      response->ping_address.ipv4_address[1],
-                      response->ping_address.ipv4_address[2]);
-      SL_DEBUG_LOG_V2(INFO, "%u", response->ping_address.ipv4_address[3]);
+      if (status != SL_STATUS_OK) { printf("\r\nPing request failed!\r\n"); return status; }
+      printf("\r\n%u bytes received from %u.%u.%u.%u\r\n",
+             response->ping_size,
+             response->ping_address.ipv4_address[0], response->ping_address.ipv4_address[1],
+             response->ping_address.ipv4_address[2], response->ping_address.ipv4_address[3]);
       break;
     }
-    case SL_NET_DHCP_NOTIFICATION_EVENT: {
-      SL_DEBUG_LOG_V2(INFO, "Received DHCP Notification event with status : 0x%lX", status);
+    case SL_NET_DHCP_NOTIFICATION_EVENT:
+      printf("\r\nReceived DHCP Notification event with status : 0x%lX\r\n", status);
       break;
-    }
     case SL_NET_IP_ADDRESS_CHANGE_EVENT: {
       sl_net_ip_configuration_t *ip_config = (sl_net_ip_configuration_t *)data;
-      SL_DEBUG_LOG_V2(INFO, "Received Ip Address Change Notification event with status : 0x%lX", status);
-      SL_DEBUG_LOG_V2(INFO,
-                      "\t Ip Address : %u.%u.",
-                      ip_config->ip.v4.ip_address.bytes[0],
-                      ip_config->ip.v4.ip_address.bytes[1]);
-      SL_DEBUG_LOG_V2(INFO, "%u.%u", ip_config->ip.v4.ip_address.bytes[2], ip_config->ip.v4.ip_address.bytes[3]);
-      SL_DEBUG_LOG_V2(INFO,
-                      "\t Netmask : %u.%u.",
-                      ip_config->ip.v4.netmask.bytes[0],
-                      ip_config->ip.v4.netmask.bytes[1]);
-      SL_DEBUG_LOG_V2(INFO, "%u.%u", ip_config->ip.v4.netmask.bytes[2], ip_config->ip.v4.netmask.bytes[3]);
-      SL_DEBUG_LOG_V2(INFO,
-                      "\t Gateway : %u.%u.",
-                      ip_config->ip.v4.gateway.bytes[0],
-                      ip_config->ip.v4.gateway.bytes[1]);
-      SL_DEBUG_LOG_V2(INFO, "%u.%u", ip_config->ip.v4.gateway.bytes[2], ip_config->ip.v4.gateway.bytes[3]);
+      printf("\r\nReceived Ip Address Change Notification event with status : 0x%lX\r\n", status);
+      printf("\t Ip Address : %u.%u.%u.%u\r\n",
+             ip_config->ip.v4.ip_address.bytes[0], ip_config->ip.v4.ip_address.bytes[1],
+             ip_config->ip.v4.ip_address.bytes[2], ip_config->ip.v4.ip_address.bytes[3]);
       break;
     }
     default:
       break;
   }
-
   return SL_STATUS_OK;
 }

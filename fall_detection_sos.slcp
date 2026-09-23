@@ -73,7 +73,21 @@ component:
   id: si91x_memory_default_config
 - package: wiseconnect3_sdk
   vendor: silabs
+  id: sl_gpio
+- package: wiseconnect3_sdk
+  vendor: silabs
+  id: sl_icm40627
+- package: wiseconnect3_sdk
+  vendor: silabs
   id: sl_si91x_internal_stack
+- package: wiseconnect3_sdk
+  instance:
+  - ulp_primary
+  vendor: silabs
+  id: sl_ssi_instance
+- package: wiseconnect3_sdk
+  vendor: silabs
+  id: sleeptimer_si91x
 - package: wiseconnect3_sdk
   vendor: silabs
   id: syscalls
@@ -179,6 +193,12 @@ autoselected_components:
   id: sl_string
 - package: simplicity_sdk
   vendor: silabs
+  id: sleeptimer
+- package: simplicity_sdk
+  vendor: silabs
+  id: sleeptimer_cortexm
+- package: simplicity_sdk
+  vendor: silabs
   id: slist
 - package: simplicity_sdk
   vendor: silabs
@@ -207,6 +227,9 @@ autoselected_components:
 - package: wiseconnect3_sdk
   vendor: silabs
   id: cmsis_peripheral_headers
+- package: wiseconnect3_sdk
+  vendor: silabs
+  id: cmsis_spi
 - package: wiseconnect3_sdk
   vendor: silabs
   id: cmsis_udma
@@ -296,6 +319,12 @@ autoselected_components:
   id: rsilib_opamp
 - package: wiseconnect3_sdk
   vendor: silabs
+  id: rsilib_spi
+- package: wiseconnect3_sdk
+  vendor: silabs
+  id: rsilib_sysrtc
+- package: wiseconnect3_sdk
+  vendor: silabs
   id: rsilib_timers
 - package: wiseconnect3_sdk
   vendor: silabs
@@ -341,6 +370,9 @@ autoselected_components:
   id: sl_dma
 - package: wiseconnect3_sdk
   vendor: silabs
+  id: sl_gpio_peripheral
+- package: wiseconnect3_sdk
+  vendor: silabs
   id: sl_si91x_agents_md
 - package: wiseconnect3_sdk
   vendor: silabs
@@ -357,6 +389,9 @@ autoselected_components:
 - package: wiseconnect3_sdk
   vendor: silabs
   id: sl_si91x_wireless
+- package: wiseconnect3_sdk
+  vendor: silabs
+  id: sl_ssi
 - package: wiseconnect3_sdk
   vendor: silabs
   id: sl_ulp_timer

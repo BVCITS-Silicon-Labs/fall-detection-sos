@@ -1,9 +1,9 @@
 /***************************************************************************/ /**
- * @file app.h
- * @brief Top level application functions
+ * @file gpio_uulp_example.h
+ * @brief GPIO UULP example 
  *******************************************************************************
  * # License
- * <b>Copyright 2020 Silicon Laboratories Inc. www.silabs.com</b>
+ * <b>Copyright 2023 Silicon Laboratories Inc. www.silabs.com</b>
  *******************************************************************************
  *
  * The licensor of this software is Silicon Laboratories Inc. Your use of this
@@ -15,17 +15,24 @@
  *
  ******************************************************************************/
 
-#ifndef APP_H
-#define APP_H
+#ifndef GPIO_UULP_EXAMPLE_H_
+#define GPIO_UULP_EXAMPLE_H_
+
+// -----------------------------------------------------------------------------
+// Prototypes
+/***************************************************************************/ /**
+ * GPIO example initialization function. It initializes pin mode,
+ * direction and configures UULP pin interrupt
+ * @param none
+ * @return none
+ ******************************************************************************/
+void gpio_uulp_example_init(void);
 
 /***************************************************************************/ /**
- * Initialize application.
+ * Function will run continuously in while loop and led toggles for every 1sec 
+ * @param none
+ * @return none
  ******************************************************************************/
-void app_init(void);
+void gpio_uulp_example_process_action(void);
 
-/***************************************************************************/ /**
- * App ticking function.
- ******************************************************************************/
-void app_process_action(void);
-void icm40627_fall_detection_reset(void);
-#endif // APP_H
+#endif /* GPIO_UULP_EXAMPLE_H_ */
