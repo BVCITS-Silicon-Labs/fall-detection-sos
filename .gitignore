@@ -1,0 +1,15 @@
+# Build outputs
+cmake_gcc/
+autogen/
+
+# Bundled SDKs (fetched via Simplicity Studio, not versioned here)
+simplicity_sdk_*/
+wiseconnect3_sdk_*/
+
+# Simplicity Studio internals
+.metadata/
+*.slpj
+
+# OS/editor junk
+.DS_Store
+Thumbs.db

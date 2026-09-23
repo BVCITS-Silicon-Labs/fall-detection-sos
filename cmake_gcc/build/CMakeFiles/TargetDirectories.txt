@@ -1,4 +1,0 @@
-C:/Users/vijay/OneDrive/Documents/SiLabs/Projects/fall_detection_sos/cmake_gcc/build/CMakeFiles/slc.dir
-C:/Users/vijay/OneDrive/Documents/SiLabs/Projects/fall_detection_sos/cmake_gcc/build/CMakeFiles/fall_detection_sos.dir
-C:/Users/vijay/OneDrive/Documents/SiLabs/Projects/fall_detection_sos/cmake_gcc/build/CMakeFiles/edit_cache.dir
-C:/Users/vijay/OneDrive/Documents/SiLabs/Projects/fall_detection_sos/cmake_gcc/build/CMakeFiles/rebuild_cache.dir
