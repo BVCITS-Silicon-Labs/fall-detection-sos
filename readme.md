@@ -146,3 +146,4 @@ Portions of this project are adapted from Silicon Laboratories' WiSeConnect
 3 SDK example projects (Station Ping, ICM40627, GPIO UULP), used under the
 Silicon Labs Master Software License Agreement / Zlib license as stated in
 each source file's header.
+
