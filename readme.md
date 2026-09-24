@@ -1,155 +1,148 @@
-# Wi-Fi - Station Ping
+# Smart Fall Detection and SOS Alert System
 
-## High-Level Overview
+An embedded fall-detection and manual-SOS system built on the Silicon Labs
+SiWG917 Wi-Fi SoC (BRD2605A Dev Kit). The device uses the onboard six-axis
+IMU to detect a genuine fall in real time, and a physical button as a
+secondary manual alert trigger. Cloud alerting (Firebase Realtime Database)
+is designed in and partially implemented, but not yet completed — see
+[Current Status](#current-status) below.
 
-SiWx91x station ping example: Connect to Wi-Fi as a station and send ICMP echo requests to a target IPv4 address in SoC and NCP modes.
+## Hardware
 
-## Table of Contents
+- Silicon Labs **BRD2605A Dev Kit** (SiWG917M111MGTBA SoC)
+- Onboard **ICM40627** 6-axis IMU (accelerometer + gyroscope)
+- Onboard push button **BTN0** (manual SOS trigger)
+- USB cable for power and programming
+- 2.4 GHz Wi-Fi access point for network connectivity
 
-- [Wi-Fi - Station Ping](#wi-fi---station-ping)
-  - [Table of Contents](#table-of-contents)
-  - [High-Level Overview](#high-level-overview)
-  - [Purpose/Scope](#purposescope)
-  - [Prerequisites/Setup Requirements](#prerequisitessetup-requirements)
-    - [Hardware Requirements](#hardware-requirements)
-    - [Software Requirements](#software-requirements)
-    - [Setup Diagram](#setup-diagram)
-  - [Getting Started](#getting-started)
-  - [Application Build Environment](#application-build-environment)
-  - [Test the application](#test-the-application)
+## Software / Toolchain
 
-  - [Troubleshooting](#troubleshooting)
-  - [Resources](#resources)
-  - [Report Bugs and Get Support](#report-bugs-and-get-support)
+- Simplicity Studio 6 (project configuration, component management)
+- Visual Studio Code + Silicon Labs extension (firmware development)
+- WiSeConnect 3 SDK
+- FreeRTOS (via `sl_main` / `cmsis_os2`)
+- Serial terminal at 115200 baud (Simplicity Studio console, or PuTTY / Tera Term)
 
-## Purpose/Scope
+## Project Structure
 
-Ping is used diagnostically to ensure that a host computer that the user is trying to reach is actually operating. Ping works by sending an Internet Control Message Protocol (ICMP) Echo Request to a specified interface on the network and waiting for a reply. The application demonstrates how to configure the SiWx91x module in client mode to send a ping request to a target IP address.
+```
+fall_detection_sos/
+├── app.c / app.h              # Application entry point, Wi-Fi bring-up, main loop
+├── icm40627_example.c/.h      # IMU driver + fall-detection state machine
+├── gpio_uulp_example.c/.h     # SOS button (BTN0) driver, debounced
+├── main.c                     # Generated entry point
+├── config/                    # Auto-generated component configuration
+├── fall_detection_sos.slcp    # Simplicity Studio project/component definition
+└── readme.md
+```
 
-## Prerequisites/Setup Requirements
+## Setup Instructions
 
-### Hardware Requirements
+Before building, set two things in **`app.h`**:
 
-- A Windows PC.
-- USB-C cable
-- A Wireless Access point (which has an active internet access)
+```c
+#define DEFAULT_WIFI_CLIENT_PROFILE_SSID "YOUR_WIFI_SSID"
+#define DEFAULT_WIFI_CLIENT_CREDENTIAL   "YOUR_WIFI_PASSWORD"
+```
 
-- **SoC Mode**:
-  - Standalone
-    - BRD4002A Wireless pro kit mainboard [SI-MB4002A](https://www.silabs.com/development-tools/wireless/wireless-pro-kit-mainboard?tab=overview)
-    - Radio Boards 
-  	  - BRD4338A [SiWx917-RB4338A](https://www.silabs.com/development-tools/wireless/wi-fi/siwx917-rb4338a-wifi-6-bluetooth-le-soc-radio-board?tab=overview)
-      - BRD4342A [SiWx917-RB4342A](https://www.silabs.com/development-tools/wireless/wi-fi/siwx91x-rb4342a-wifi-6-bluetooth-le-soc-radio-board?tab=overview)
-      - BRD4339B [SiWx917-RB4339B](https://docs.silabs.com/wiseconnect/latest/wiseconnect-getting-started/getting-started-with-at)
-      - BRD4340A [SiWx917-RB4340A](https://docs.silabs.com/wiseconnect/latest/wiseconnect-getting-started/getting-started-with-at)
-  	  - BRD4343A [SiWx917-RB4343A](https://www.silabs.com/development-tools/wireless/wi-fi/siw917y-rb4343a-wi-fi-6-bluetooth-le-8mb-flash-radio-board-for-module?tab=overview)
-  	  - BRD4343C [SiWx917-RB4343C](https://www.silabs.com/development-tools/wireless/wi-fi/siw917y-rb4343c-wi-fi-6-bluetooth-le-8mb-flash-radio-board-for-module?tab=overview)
-  - Kits
-  	- SiWG917 Dev Kit [BRD2605A](https://www.silabs.com/development-tools/wireless/wi-fi/siwx917-dk2605a-wifi-6-bluetooth-le-soc-dev-kit?tab=overview)
-  	- SiWx917 Pro Kit [Si917-PK6031A](https://www.silabs.com/development-tools/wireless/wi-fi/siwx917-pro-kit?tab=overview)
-  	- SiWx917 Pro Kit [Si917-PK6032A]
-    - SiWx917 AC1 Module Explorer Kit [BRD2708A](https://www.silabs.com/development-tools/wireless/wi-fi/siw917y-ek2708a-explorer-kit?tab=overview)
-  	
-- **NCP Mode**:
-  - Standalone
-    - BRD4002A Wireless pro kit mainboard [SI-MB4002A](https://www.silabs.com/development-tools/wireless/wireless-pro-kit-mainboard?tab=overview)
-    - EFR32xG24 Wireless 2.4 GHz +10 dBm Radio Board [xG24-RB4186C](https://www.silabs.com/development-tools/wireless/xg24-rb4186c-efr32xg24-wireless-gecko-radio-board?tab=overview)
-    - NCP Expansion Kit with NCP Radio boards
-      - [BRD4346A](https://www.silabs.com/development-tools/wireless/wi-fi/siwx917-rb4346a-wifi-6-bluetooth-le-soc-4mb-flash-radio-board?tab=overview) + [BRD8045A](https://www.silabs.com/development-tools/wireless/wi-fi/expansion-adapter-board-for-co-processor-radio-boards?tab=overview)
-      - [BRD4357A](https://www.silabs.com/development-tools/wireless/wi-fi/siw917y-rb4357a-wi-fi-6-bluetooth-le-4mb-flash-radio-board-for-rcp-and-ncp-modules?tab=overview) + [BRD8045A](https://www.silabs.com/development-tools/wireless/wi-fi/expansion-adapter-board-for-co-processor-radio-boards?tab=overview)
-      - [BRD4357C](https://www.silabs.com/development-tools/wireless/wi-fi/siw917y-rb4357c-wi-fi-6-bluetooth-le-4mb-flash-radio-board-for-rcp-and-ncp-modules?tab=overview) + [BRD8045A](https://www.silabs.com/development-tools/wireless/wi-fi/expansion-adapter-board-for-co-processor-radio-boards?tab=overview)
-  - Interface and Host MCU Supported
-    - SPI - EFR32 
-    - UART - EFR32
+Replace with your own 2.4 GHz network's credentials (the SiWG917 radio is
+2.4 GHz only). Do not commit real credentials to source control.
 
+## Build Instructions
 
-### Software Requirements
+1. Open the project in Simplicity Studio (target: BRD2605A).
+2. In **Software Components**, confirm the following are installed:
+   - Sleep Timer for Si91x
+   - GPIO (Peripheral)
+   - ICM40627
+   - SSI (`ulp_primary` instance)
+   - Wi-Fi / Network Manager components (included by default from the
+     Station Ping base example)
+3. Open in VS Code (GCC), then **Clean** and **Build**.
 
-- Simplicity Studio
--  Serial Terminal - [Docklight](https://docklight.de/)/[Tera Term](https://ttssh2.osdn.jp/index.html.en)
+> **Note:** In this project's history, reinstalling or regenerating a
+> component through the Software Components GUI has occasionally reset
+> `cmake_gcc/<project>.cmake`, dropping manually-added source files or
+> include paths. If a rebuild suddenly reports `undefined reference` or
+> `No such file or directory` for `icm40627_example.c`,
+> `gpio_uulp_example.c`, or SSI/Sleeptimer symbols, check that file's
+> `add_library(slc OBJECT ...)` and `target_include_directories(...)`
+> blocks still list them, and re-add if missing.
 
-### Setup Diagram
+## Flashing
 
-  ![Figure: Setup Diagram SoC and NCP Mode for Station Ping Example](resources/readme/stationpingsetupsoc_ncp.png)
+1. Connect the BRD2605A via USB.
+2. Flash from VS Code / Simplicity Studio as normal.
+3. Open a serial console at **115200 baud**.
 
-## Getting Started
+## Testing
 
-Refer to the instructions [here](https://docs.silabs.com/wiseconnect/latest/wiseconnect-getting-started/) to:
+On boot, the console should show, in order:
+- GPIO driver initialization messages
+- ICM40627 initialization messages (including `Sleeptimer start status: 0x0`)
+- Wi-Fi connection messages
+- `Entering main loop`, followed by periodic `Main loop alive` heartbeats
 
-- [Install Simplicity Studio](https://docs.silabs.com/wiseconnect/latest/wiseconnect-developers-guide-developing-for-silabs-hosts/#install-simplicity-studio)
-- [Install WiSeConnect extension](https://docs.silabs.com/wiseconnect/latest/wiseconnect-developers-guide-developing-for-silabs-hosts/#install-the-wi-se-connect-extension)
-- [Connect your device to the computer](https://docs.silabs.com/wiseconnect/latest/wiseconnect-developers-guide-developing-for-silabs-hosts/#connect-si-wx91x-to-computer)
-- [Upgrade your connectivity firmware](https://docs.silabs.com/wiseconnect/latest/wiseconnect-developers-guide-developing-for-silabs-hosts/#update-si-wx91x-connectivity-firmware)
-- [Create a Studio project](https://docs.silabs.com/wiseconnect/latest/wiseconnect-developers-guide-developing-for-silabs-hosts/#create-a-project)
+**SOS button:** press BTN0 — the console should print exactly one
+`SOS BUTTON PRESSED` per physical press (debounced, no bounce spam).
 
-For details on the project folder structure, see the [WiSeConnect Examples](https://docs.silabs.com/wiseconnect/latest/wiseconnect-examples/#example-folder-structure) page.
+**Fall detection:** with `FALL_DEBUG_MODE` set to `1` in
+`icm40627_example.c`, the console streams `mag=<value> state=<0-3>` on
+every sample. A genuine drop (release the board briefly onto a soft
+surface — do not swing or guide it by hand) should show:
+- `state=0 → 1`: a free-fall dip (magnitude below ~0.6g)
+- `state=1 → 2`: an impact spike (magnitude above ~2.0g)
+- `state=2 → 3`: after ~2 seconds of settling, the console prints
+  `FALL DETECTED`
 
-## Application Build Environment
+**Important:** once a fall is confirmed (`state=3`), the system
+deliberately **latches** in that state and will not print another
+`FALL DETECTED` for the same event. This is intentional — a reset
+(`icm40627_fall_detection_reset()`) is provided as a hook, intended to be
+called once an alert has been successfully sent, or manually, but nothing
+currently calls it automatically.
 
-- The application can be configured to suit your requirements and development environment. Read through the following sections and make any changes as needed.
-- In the Project Explorer pane, expand the **config/** folder and open the ``sl_net_default_values.h`` file. Configure the following parameters to enable your Silicon Labs Wi-Fi device to connect to your Wi-Fi network.
+## Fall Detection Algorithm
 
-- STA instance related parameters
+Implemented as a 4-state machine in `icm40627_example.c`, driven by the
+combined acceleration magnitude `sqrt(x² + y² + z²)`:
 
-  - DEFAULT_WIFI_CLIENT_PROFILE_SSID refers to the name with which Wi-Fi network that shall be advertised and SiWx91x module is connected to it.
-  
-     ```c
-     #define DEFAULT_WIFI_CLIENT_PROFILE_SSID               "YOUR_AP_SSID"      
-     ```
+| State | Meaning | Trigger condition |
+|---|---|---|
+| `NORMAL` (0) | Resting / ordinary movement | — |
+| `FREEFALL_DETECTED` (1) | Possible free-fall dip seen | magnitude < 0.6g for ≥3 consecutive samples |
+| `IMPACT_DETECTED` (2) | Impact spike seen after a dip | magnitude > 2.0g within 1s of entering state 1 |
+| `CONFIRMED` (3) | Fall confirmed | magnitude settles into 0.7–1.3g for ~2s (brief excursions up to 300ms tolerated) |
 
-  - DEFAULT_WIFI_CLIENT_CREDENTIAL refers to the secret key if the Access point is configured in WPA-PSK/WPA2-PSK security modes.
+Thresholds were tuned empirically using controlled drop tests and may need
+further adjustment for a specific mounting location or use case (see
+[Future Work](#future-work)).
 
-     ```c
-     #define DEFAULT_WIFI_CLIENT_CREDENTIAL                 "YOUR_AP_PASSPHRASE" 
-     ```
+## Current Status
 
-  - DEFAULT_WIFI_CLIENT_SECURITY_TYPE refers to the security type if the Access point is configured in WPA/WPA2 or mixed security modes.
+- ✅ Wi-Fi connectivity (non-fatal on failure — sensors and button keep
+  working even if Wi-Fi doesn't connect)
+- ✅ IMU-based automatic fall detection, tuned and verified against real
+  drop tests
+- ✅ Manual SOS button (BTN0), debounced
+- ⏳ **Cloud alerting (Firebase Realtime Database) — attempted, not yet
+  completed.** An HTTP Client component and HTTPS/TLS certificate setup
+  were explored; the `send_fall_alert()` integration referenced by the
+  `TODO` comments in `icm40627_example.c` and `gpio_uulp_example.c` is not
+  yet implemented. This is the primary remaining task.
 
-    ```c
-    #define DEFAULT_WIFI_CLIENT_SECURITY_TYPE                             SL_WIFI_WPA2 
-    ```
-  
-  - Other STA instance configurations can be modified if required in `default_wifi_client_profile` configuration structure.
+## Future Work
 
-- Configure the following parameters in ``app.c`` to test Station Ping application.
+- Complete the Firebase Realtime Database HTTPS integration
+- Automatic or event-driven reset of the fall-detection state after an
+  alert is sent
+- Further threshold tuning using real-world fall data / more drop tests
+- GPS-based location tagging for alerts
+- Caregiver-facing dashboard for live alert monitoring
 
-  - **Remote peer configurations**
+## License
 
-      ```c
-      #define REMOTE_IP_ADDRESS   "192.168.0.198"    // Remote/Target IPv4 address to ping
-      #define PING_PACKET_SIZE    64                 // Size of ping request packet
-      ```
-
-> **Note**: For recommended settings, see the [Recommendations Guide](https://docs.silabs.com/wiseconnect/latest/wiseconnect-developers-guide-prog-recommended-settings/).
-
-## Test the application
-
-Refer to the instructions [here](https://docs.silabs.com/wiseconnect/latest/wiseconnect-getting-started/) to:
-
-- Build the application.
-- Flash, run and debug the application.
-- After successful connection with the Access Point, the device starts sending ping requests to the given REMOTE_IP_ADDRESS with configured PING_PACKET_SIZE to check availability of target device.
-
-- In the `app.c` file, when the ping response arrives from the remote node, the application identifies it from the `status` parameter of the callback function (`ping_callback_handler`) registered.
-
-  ![Station_Ping_Output](resources/readme/station_ping_output.png)
-
-## Troubleshooting
-
-If you encounter issues while running this example, check the following:
-
-- Verify Wi-Fi credentials in `sl_net_default_values.h` and ping target IP address in `app.c`.
-- Ensure that the target host is on the same network as the SiWx91x and responds to ICMP ping.
-- If ping requests time out, check firewall settings on the target PC.
-
-## Resources
-
-- [WiSeConnect Getting Started Guide](https://docs.silabs.com/wiseconnect/latest/wiseconnect-getting-started/)
-- [WiSeConnect Examples](https://docs.silabs.com/wiseconnect/latest/wiseconnect-examples/#example-folder-structure)
-- [WiSeConnect Recommended Settings Guide](https://docs.silabs.com/wiseconnect/latest/wiseconnect-developers-guide-prog-recommended-settings/)
-
-## Report Bugs and Get Support
-
-Report issues and get help from the Silicon Labs community:
-
-- [Silicon Labs Community](https://www.silabs.com/community)
+Portions of this project are adapted from Silicon Laboratories' WiSeConnect
+3 SDK example projects (Station Ping, ICM40627, GPIO UULP), used under the
+Silicon Labs Master Software License Agreement / Zlib license as stated in
+each source file's header.
