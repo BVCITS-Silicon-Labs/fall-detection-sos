@@ -1,7 +1,7 @@
 # Silicon Labs Project Configuration Tools: slcp, v0, Component selection file.
 project_name: fall_detection_sos
 label: fall_detection_sos
-description: Demonstrates how to send an ICMP ping request.
+description: Fall detection and SOS alert firmware using onboard IMU-based fall detection and a debounced SOS button, with Wi-Fi connectivity.
 category: Example|Wi-Fi
 filter:
 - name: Project Difficulty
@@ -467,8 +467,6 @@ autoselected_components:
 other_file:
 - path: resources/readme/station_ping_output.png
 - path: resources/readme/stationpingsetupsoc_ncp.png
-define:
-- name: SL_SI91X_PRINT_DBG_LOG
 configuration:
 - name: SL_BOARD_ENABLE_VCOM
   value: '1'
@@ -483,4 +481,3 @@ sdk_extension:
 post_build:
 - path: fall_detection_sos.slpb
   profile: wiseconnect_soc
-
